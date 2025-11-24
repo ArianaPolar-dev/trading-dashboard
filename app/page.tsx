@@ -35,13 +35,13 @@ export default function HomePage() {
   const [section, setSection] = useState('dashboard');
   const [state, setState] = usePersistentState<AppState>('trading-app-state', initialState);
 
-  // --------- Registro y edición -------------
+  // Registro y edición
   const [movementAmount, setMovementAmount] = useState<number>(0);
   const [movementType, setMovementType] = useState<'deposit' | 'withdraw'>('deposit');
   const [showModal, setShowModal] = useState(false);
   const [tradeDay, setTradeDay] = useState<string>(new Date().toISOString().slice(0, 10));
 
-  // --- Serie martingala por día ---
+  // Serie martingala por día
   const seriesByDay = useMemo(() => {
     const map: Record<string, Trade[]> = {};
     state.trades.forEach(t => {
@@ -65,7 +65,7 @@ export default function HomePage() {
   function getDailySummary(day: string) {
     const trades = seriesByDay[day] || [];
     if (trades.length === 0) return null;
-    const pnl = trades.reduce((acc, t) => {
+    const pnl = trades.reduce((acc: number, t: Trade) => {
       const risk = t.amount * Math.pow(2, t.level - 1);
       return acc + (t.result === 'win' ? risk * t.payout : -risk);
     }, 0);
@@ -76,7 +76,7 @@ export default function HomePage() {
     };
   }
 
-  // -- Operación/Secuencia diaria --
+  // Operación/Secuencia diaria
   const [tradeAmount, setTradeAmount] = useState<number>(initialState.baseBet);
   const [tradeLevel, setTradeLevel] = useState<number>(1);
   const [tradeResult, setTradeResult] = useState<'win' | 'loss'>('win');
@@ -95,7 +95,7 @@ export default function HomePage() {
       amount: tradeAmount, level: tradeLevel,
       result: tradeResult, payout: state.payout,
     };
-    setState(prev => ({
+    setState((prev: AppState) => ({
       ...prev,
       trades: [...prev.trades, newTrade],
     }));
@@ -104,7 +104,7 @@ export default function HomePage() {
     setTradeResult('win');
   };
 
-  // -- Fondos --
+  // Fondos
   const addMovement = () => {
     if (!movementAmount || movementAmount <= 0) return;
     setShowModal(true);
@@ -117,14 +117,14 @@ export default function HomePage() {
       type: movementType,
       amount: movementAmount,
     };
-    setState(prev => ({ ...prev, movements: [...prev.movements, newMovement], }));
+    setState((prev: AppState) => ({ ...prev, movements: [...prev.movements, newMovement], }));
     setMovementAmount(0); setShowModal(false);
   };
 
-  // ----------- Estadísticas/visualizaciones históricas -----------
+  // Visualizaciones históricas
   const equityHistory = useMemo(() => {
     let bal = state.startingBalance + state.movements.reduce(
-      (acc, m) => acc + (m.type === 'deposit' ? m.amount : -m.amount), 0
+      (acc: number, m: BalanceMovement) => acc + (m.type === 'deposit' ? m.amount : -m.amount), 0
     );
     let peak = bal;
     let maxDrawdown = 0;
@@ -145,14 +145,14 @@ export default function HomePage() {
       return { date, winrate: sum?.win ? 100 : 0 };
     }), [equityHistory, getDailySummary]);
 
-  // ----------- Proyección ganancia/simulador sencillo ----------
+  // Simulación/Proyección
   const [simOps, setSimOps] = useState(6);
   const [simWinrate, setSimWinrate] = useState(0.6);
   const [simAmount, setSimAmount] = useState(state.baseBet);
   const [simPayout, setSimPayout] = useState(state.payout);
 
   const simulation = useMemo(() => {
-    let series = [];
+    let series: number[] = [];
     let balance = state.startingBalance;
     let wins = 0, losses = 0;
     for (let i = 0; i < simOps; i++) {
@@ -179,7 +179,7 @@ export default function HomePage() {
     }],
   };
 
-  // ----------- Zona de retiro en equity histórico -----------
+  // Zona de retiro
   const retiroTarget = useMemo(() =>
     state.startingBalance * (1 + (state.retiroPct ?? 25) / 100),
     [state.startingBalance, state.retiroPct]
@@ -195,29 +195,29 @@ export default function HomePage() {
     }]
   };
 
-  // --- CALCULO PARA canReachLevel4 / canReachMaxLevel ---
+  // CALCULO PARA canReachLevel4 / canReachMaxLevel
   const progressionSum = Array.from({ length: state.maxLevel }).reduce(
-    (acc, _, idx) => acc + Math.pow(2, idx), 0
+    (acc: number, _, idx) => acc + Math.pow(2, idx), 0
   );
   const requiredForMax = state.baseBet * progressionSum;
   const maxRefLevel = 4;
   const progressionSum4 = Array.from({ length: maxRefLevel }).reduce(
-    (acc, _, idx) => acc + Math.pow(2, idx), 0
+    (acc: number, _, idx) => acc + Math.pow(2, idx), 0
   );
   const requiredFor4 = state.baseBet * progressionSum4;
   const balanceForCalc =
     state.startingBalance +
-    state.movements.reduce((acc, m) => acc + (m.type === 'deposit' ? m.amount : -m.amount), 0) +
+    state.movements.reduce((acc: number, m: BalanceMovement) => acc + (m.type === 'deposit' ? m.amount : -m.amount), 0) +
     Object.values(seriesByDay)
       .flat()
-      .reduce((acc, t) => {
+      .reduce((acc: number, t: Trade) => {
         const risk = t.amount * Math.pow(2, t.level - 1);
         return acc + (t.result === 'win' ? risk * t.payout : -risk);
       }, 0);
   const canReachMaxLevel = balanceForCalc >= requiredForMax + state.reservedForLevel4;
   const canReachLevel4 = balanceForCalc >= requiredFor4 + state.reservedForLevel4;
 
-  // ---------- SEMÁFORO Y REGLAS PERSONALIZADAS -------------
+  // SEMÁFORO Y REGLAS PERSONALIZADAS
   const semDias = Number(state.semaforoDias ?? 3);
   const semPct = Number(state.semaforoPct ?? 2) / 100;
   const ultimos = equityHistory.byDay.slice(-semDias - 1);
@@ -233,13 +233,13 @@ export default function HomePage() {
   if (verdes === semDias) semaforo = "green";
   else if (verdes >= Math.max(1, semDias - 1)) semaforo = "yellow";
 
-  // --- Alertas: solo margen para x2 o varios x3 ---
+  // Alertas: solo margen para x2 o varios x3
   const todaySummary = getDailySummary(tradeDay);
   let martiAlert = "";
   if (todaySummary && todaySummary.maxLevel >= 3) martiAlert = "Alerta: Llegaste a x3 en martingala hoy. Observa tu regla de riesgo.";
   else if ((!canReachLevel4 && canReachMaxLevel)) martiAlert = "¡Alerta! Solo margen hasta x2, considera reducir el monto base.";
 
-  // ----------- CALENDARIO/MES -------------
+  // CALENDARIO/MES
   function CalendarTable({ dates }: { dates: string[] }) {
     return (
       <div className="grid grid-cols-7 gap-2 mb-4">
@@ -540,7 +540,7 @@ export default function HomePage() {
               <input
                 type="number"
                 value={state.startingBalance}
-                onChange={e => setState(prev => ({ ...prev, startingBalance: Number(e.target.value) }))}
+                onChange={e => setState((prev: AppState) => ({ ...prev, startingBalance: Number(e.target.value) }))}
                 className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -551,7 +551,7 @@ export default function HomePage() {
                   type="number"
                   value={state.baseBet}
                   onChange={e =>
-                    setState(prev => ({ ...prev, baseBet: Number(e.target.value) || 0 }))
+                    setState((prev: AppState) => ({ ...prev, baseBet: Number(e.target.value) || 0 }))
                   }
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -563,7 +563,7 @@ export default function HomePage() {
                   step="0.01"
                   value={state.payout}
                   onChange={e =>
-                    setState(prev => ({ ...prev, payout: Number(e.target.value) || 0 }))
+                    setState((prev: AppState) => ({ ...prev, payout: Number(e.target.value) || 0 }))
                   }
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -575,7 +575,7 @@ export default function HomePage() {
                   min={1}
                   value={state.maxLevel}
                   onChange={e =>
-                    setState(prev => ({ ...prev, maxLevel: Math.max(1, Number(e.target.value) || 1) }))
+                    setState((prev: AppState) => ({ ...prev, maxLevel: Math.max(1, Number(e.target.value) || 1) }))
                   }
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -586,7 +586,7 @@ export default function HomePage() {
                   type="number"
                   value={state.reservedForLevel4}
                   onChange={e =>
-                    setState(prev => ({ ...prev, reservedForLevel4: Number(e.target.value) || 0 }))
+                    setState((prev: AppState) => ({ ...prev, reservedForLevel4: Number(e.target.value) || 0 }))
                   }
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -598,7 +598,7 @@ export default function HomePage() {
                 <input
                   type="number"
                   value={state.retiroPct ?? 25}
-                  onChange={e => setState(prev => ({ ...prev, retiroPct: Number(e.target.value) }))}
+                  onChange={e => setState((prev: AppState) => ({ ...prev, retiroPct: Number(e.target.value) }))}
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -607,7 +607,7 @@ export default function HomePage() {
                 <input
                   type="number"
                   value={state.semaforoPct ?? 2}
-                  onChange={e => setState(prev => ({ ...prev, semaforoPct: Number(e.target.value) }))}
+                  onChange={e => setState((prev: AppState) => ({ ...prev, semaforoPct: Number(e.target.value) }))}
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
@@ -616,7 +616,7 @@ export default function HomePage() {
                 <input
                   type="number"
                   value={state.semaforoDias ?? 3}
-                  onChange={e => setState(prev => ({ ...prev, semaforoDias: Number(e.target.value) }))}
+                  onChange={e => setState((prev: AppState) => ({ ...prev, semaforoDias: Number(e.target.value) }))}
                   className="bg-neutral-800 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
