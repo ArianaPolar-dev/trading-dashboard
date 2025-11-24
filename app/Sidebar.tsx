@@ -1,5 +1,11 @@
 'use client';
-export default function Sidebar({ currentSection, setSection }) {
+
+type SidebarProps = {
+  currentSection: string,
+  setSection: (key: string) => void
+};
+
+export default function Sidebar({ currentSection, setSection }: SidebarProps) {
   const menu = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'calendario', label: 'Resumen Semanal/Mensual' },
@@ -25,3 +31,4 @@ export default function Sidebar({ currentSection, setSection }) {
     </aside>
   );
 }
+
