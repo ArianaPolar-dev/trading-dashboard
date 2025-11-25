@@ -429,7 +429,7 @@ export default function HomePage() {
                           borderWidth: 2,
                           label: {
                             content: 'Zona de Retiro',
-                            enabled: true,
+                            display: true,
                             backgroundColor: 'rgb(55,250,100)',
                             position: 'start'
                           }
