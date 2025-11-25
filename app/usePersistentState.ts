@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
-export function usePersistentState<T>(key: string, defaultValue: T): [T, (v: T) => void] {
+export function usePersistentState<T>(
+  key: string,
+  defaultValue: T
+): [T, Dispatch<SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(key);
